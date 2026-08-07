@@ -355,6 +355,64 @@ def error_demo():
             "type": type(error).__name__,
         }), 500
 
+@app.get("/api/ping")
+@require_login
+def ping_host():
+    # ==========================================================
+    # OS COMMAND INJECTION ISSUE
+    # ==========================================================
+    #
+    # Test:
+    #     /api/ping?host=127.0.0.1 & whoami
+    #     /api/ping?host=127.0.0.1 && dir
+    #
+    # The user-controlled "host" value is concatenated straight into
+    # a shell command string executed with shell=True.
+    #
+    # CORRECT:
+    # subprocess.run(["ping", "-n", "1", host], shell=False, timeout=5)
+    # and validate `host` against a strict hostname/IP allow-list.
+
+    host = request.args.get("host", "127.0.0.1")
+
+    result = subprocess.run(
+        f"ping -n 1 {host}",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+
+    return jsonify({"output": result.stdout + result.stderr})
+
+@app.get("/api/fetch-url")
+@require_login
+def fetch_url():
+    # ==========================================================
+    # SERVER-SIDE REQUEST FORGERY (SSRF) ISSUE
+    # ==========================================================
+    #
+    # Test:
+    #     /api/fetch-url?url=http://169.254.169.254/latest/meta-data/
+    #     /api/fetch-url?url=http://127.0.0.1:5000/api/debug
+    #
+    # The server fetches any URL the client supplies, including
+    # cloud metadata endpoints and other internal/loopback services
+    # that should never be reachable from outside.
+    #
+    # CORRECT: validate against an allow-list of external hosts and
+    # block requests to private/link-local/loopback address ranges.
+
+    url = request.args.get("url", "")
+
+    try:
+        upstream = requests.get(url, timeout=5)
+    except Exception as error:
+        return jsonify({"error": str(error)}), 400
+
+    return jsonify({
+        "status_code": upstream.status_code,
+        "body": upstream.text[:2000],
+    })
 
 
 @app.get("/api/render")
