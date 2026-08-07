@@ -325,6 +325,40 @@ def error_demo():
         }), 500
 
 
+@app.post("/api/profile")
+@require_login
+def update_profile():
+    # ==========================================================
+    # MASS ASSIGNMENT / PRIVILEGE ESCALATION ISSUE
+    # ==========================================================
+    #
+    # Test: send a profile update with an extra "role" field:
+    #     {"role": "admin"}
+    #
+    # Every key the client sends is written straight to the
+    # database — including "role" and the column name itself is
+    # never validated, so this is also a SQL injection point via
+    # the field name.
+    #
+    # CORRECT: whitelist updatable fields, use parameterized
+    # column references, and never let the client set
+    # authorization-relevant fields like "role".
+
+    data = request.get_json(silent=True) or {}
+    connection = get_connection()
+
+    for field, value in data.items():
+        connection.execute(
+            f"UPDATE users SET {field} = ? WHERE id = ?",
+            (value, request.current_user["id"]),
+        )
+
+    connection.commit()
+    connection.close()
+
+    return jsonify({"message": "Profile updated"})
+
+
 if __name__ == "__main__":
     app.run(
         host="127.0.0.1",
