@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 from flask import (
@@ -311,6 +312,33 @@ def cors_demo():
     response = jsonify({"message": "CORS demonstration"})
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
+
+@app.get("/api/admin/ping")
+@require_login
+def ping_host():
+    host = request.args.get("host", "127.0.0.1")
+
+    # ISSUE: OS command injection.
+    # User input is concatenated into a shell command string and
+    # executed with shell=True.
+    #
+    # Test:
+    #     /api/admin/ping?host=127.0.0.1 & whoami
+    #
+    # CORRECT:
+    # subprocess.run(["ping", "-n", "1", host], shell=False, timeout=5)
+    # and still validate `host` against a hostname/IP allow-list.
+
+    command = f"ping -n 1 {host}"
+    result = subprocess.run(
+        command, shell=True, capture_output=True, text=True
+    )
+
+    return jsonify({
+        "host": host,
+        "output": result.stdout + result.stderr,
+    })
 
 
 @app.get("/api/error")
