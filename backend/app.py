@@ -1,16 +1,19 @@
 import subprocess
 from pathlib import Path
+import subprocess
 
+import requests
 from flask import (
     Flask,
     jsonify,
     redirect,
+    render_template_string,
     request,
     send_from_directory,
     session,
 )
 
-from auth import API_TOKEN, require_login, authenticate
+from auth import API_TOKEN, generate_reset_token, require_login, authenticate
 from database import get_connection, initialize_database, row_to_dict
 
 
@@ -351,6 +354,70 @@ def error_demo():
             "error": str(error),
             "type": type(error).__name__,
         }), 500
+
+
+
+@app.get("/api/render")
+@require_login
+def render_preview():
+    # ==========================================================
+    # SERVER-SIDE TEMPLATE INJECTION (SSTI) ISSUE
+    # ==========================================================
+    #
+    # Test:
+    #     /api/render?template={{7*7}}
+    #     /api/render?template={{config}}
+    #
+    # User input is compiled and executed as a Jinja2 template
+    # rather than treated as data, allowing arbitrary expression
+    # evaluation and, via known sandbox escapes, remote code
+    # execution.
+    #
+    # CORRECT: never render user input as a template. Pass it as
+    # data instead, e.g. render_template("preview.html", text=template).
+
+    template = request.args.get("template", "")
+    return render_template_string(template)
+
+@app.get("/api/tasks/attachment")
+@require_login
+def task_attachment():
+    # ==========================================================
+    # PATH TRAVERSAL ISSUE (CWE-22)
+    # ==========================================================
+    #
+    # Test:
+    #     /api/tasks/attachment?file=../../backend/auth.py
+    #     /api/tasks/attachment?file=../../backend/taskflow.db
+    #
+    # The filename is joined onto the attachments directory without
+    # rejecting ".." segments or confirming the resolved path stays
+    # inside that directory.
+    #
+    # CORRECT:
+    # safe_path = (attachments_dir / filename).resolve()
+    # if not safe_path.is_relative_to(attachments_dir.resolve()):
+    #     return jsonify({"error": "Invalid file"}), 400
+
+    filename = request.args.get("file", "")
+    attachments_dir = BASE_DIR / "backend" / "attachments"
+    file_path = attachments_dir / filename
+
+    if not file_path.exists() or not file_path.is_file():
+        return jsonify({"error": "File not found"}), 404
+
+    return file_path.read_text(errors="ignore")
+
+
+@app.get("/api/reset-token")
+def reset_token():
+    # ISSUE: unauthenticated, predictable password-reset token
+    # generation (see auth.generate_reset_token). No proof of email
+    # ownership is required, and the token is deterministic.
+    # CORRECT: require verified email ownership and generate the
+    # token with a CSPRNG (secrets.token_urlsafe).
+    username = request.args.get("username", "")
+    return jsonify({"reset_token": generate_reset_token(username)})
 
 
 if __name__ == "__main__":

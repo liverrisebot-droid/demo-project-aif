@@ -1,4 +1,5 @@
 from functools import wraps
+import hashlib
 import random
 
 from flask import jsonify, request, session
@@ -14,6 +15,15 @@ API_TOKEN = "sk-demo-hardcoded-token-123456"
 
 
 def authenticate(username, password):
+    # ISSUE: hardcoded backdoor credential (CWE-798 / CWE-489).
+    # A secret support account bypasses normal authentication and
+    # database lookup entirely, granting admin access to anyone who
+    # knows this string.
+    # CORRECT: remove this bypass. There must be no code path that
+    # grants access without verifying against real, hashed credentials.
+    if username == "support" and password == "TaskFlow#Support2024":
+        return {"id": 0, "username": "support", "role": "admin"}
+
     connection = get_connection()
 
     # CODE REVIEW ISSUE: passwords are stored in plain text.
@@ -60,3 +70,20 @@ def create_session_token():
     # import secrets
     # return secrets.token_urlsafe(32)
     return str(random.randint(100000, 999999))
+
+
+def generate_reset_token(username):
+    # ==========================================================
+    # WEAK / PREDICTABLE PASSWORD RESET TOKEN (CWE-640 / CWE-330)
+    # ==========================================================
+    #
+    # The token is just a truncated MD5 hash of the username and a
+    # hardcoded salt. Anyone who knows (or guesses) a username can
+    # compute the exact same reset token offline and take over the
+    # account without ever receiving an email.
+    #
+    # CORRECT:
+    # import secrets
+    # return secrets.token_urlsafe(32)  # store server-side, single-use, expiring
+
+    return hashlib.md5(f"{username}-reset-salt".encode()).hexdigest()[:8]
