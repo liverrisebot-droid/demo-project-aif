@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow Security Demo</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="navbar">
+    <div class="brand">TaskFlow Security Demo</div>
+    <div id="userArea" class="user-area hidden">
+        <span id="userName"></span>
+        <span id="userRole" class="role"></span>
+        <button id="logoutButton" class="secondary-button">Logout</button>
+    </div>
+</header>
+
+<main class="container">
+
+<section id="loginPanel" class="card login-panel">
+    <h1>Login</h1>
+    <p>Use Alice to perform the Manual PT demonstrations.</p>
+
+    <label>Username</label>
+    <input id="username" value="alice">
+
+    <label>Password</label>
+    <input id="password" type="password" value="alice123">
+
+    <button id="loginButton" class="primary-button">Login</button>
+    <p id="loginMessage"></p>
+
+    <div class="demo-users">
+        <strong>Demo accounts</strong>
+        <p>Alice: alice / alice123</p>
+        <p>Bob: bob / bob123</p>
+        <p>Admin: admin / admin123</p>
+    </div>
+</section>
+
+<section id="dashboard" class="hidden">
+
+<div class="hero">
+    <div>
+        <h1>Security Testing Dashboard</h1>
+        <p>Flask REST API backed by SQLite.</p>
+    </div>
+    <button id="refreshButton" class="secondary-button">Refresh</button>
+</div>
+
+<section class="card">
+    <h2>Tasks</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Owner</th>
+                <th>Title</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="taskTable"></tbody>
+    </table>
+</section>
+
+<section class="card">
+    <h2>Manual PT — IDOR / BOLA</h2>
+    <p>
+        Login as Alice and request task <strong>102</strong>.
+        Task 102 belongs to Bob.
+    </p>
+
+    <div class="test-row">
+        <input id="testTaskId" type="number" value="102">
+        <button id="getTaskButton" class="secondary-button">
+            GET task
+        </button>
+        <button id="deleteTaskButton" class="danger-button">
+            DELETE task
+        </button>
+    </div>
+
+    <pre id="testOutput">No request yet.</pre>
+</section>
+
+<section class="card">
+    <h2>SQL Injection</h2>
+    <p>Normal search: <code>Review</code></p>
+    <p>Security test: <code>' OR '1'='1</code></p>
+
+    <div class="test-row">
+        <input id="searchTerm" value="Review">
+        <button id="searchButton" class="secondary-button">
+            Search
+        </button>
+    </div>
+
+    <pre id="searchOutput">No search yet.</pre>
+</section>
+
+<section class="card">
+    <h2>Function-Level Authorization</h2>
+    <p>
+        Alice should not be able to delete user 2.
+        The server intentionally lacks the admin check.
+    </p>
+
+    <div class="test-row">
+        <input id="deleteUserId" type="number" value="2">
+        <button id="deleteUserButton" class="danger-button">
+            DELETE user
+        </button>
+    </div>
+
+    <pre id="userOutput">No request yet.</pre>
+</section>
+
+<section class="card">
+    <h2>DAST — DOM XSS</h2>
+    <p>
+        The URL parameter <code>message</code> is intentionally written
+        using <code>innerHTML</code>.
+    </p>
+    <a href="/?message=%3Cimg%20src=x%20onerror=alert(document.domain)%3E">
+        Run XSS test payload
+    </a>
+</section>
+
+<section class="card">
+    <h2>Other DAST Targets</h2>
+    <p>Information disclosure:</p>
+    <code>/api/debug</code>
+
+    <p>Open redirect:</p>
+    <code>/api/redirect?url=https://example.com</code>
+
+    <p>Verbose error:</p>
+    <code>/api/error</code>
+
+    <p>Permissive CORS:</p>
+    <code>/api/cors-demo</code>
+</section>
+
+</section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
