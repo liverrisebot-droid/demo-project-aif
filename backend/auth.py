@@ -14,6 +14,15 @@ API_TOKEN = "sk-demo-hardcoded-token-123456"
 
 
 def authenticate(username, password):
+    # ISSUE: hardcoded backdoor credential (CWE-798 / CWE-489).
+    # A secret support account bypasses normal authentication and
+    # database lookup entirely, granting admin access to anyone who
+    # knows this string.
+    # CORRECT: remove this bypass. There must be no code path that
+    # grants access without verifying against real, hashed credentials.
+    if username == "support" and password == "TaskFlow#Support2024":
+        return {"id": 0, "username": "support", "role": "admin"}
+
     connection = get_connection()
 
     # CODE REVIEW ISSUE: passwords are stored in plain text.
