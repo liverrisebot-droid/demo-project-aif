@@ -1,7 +1,7 @@
 # TaskFlow Security Demo — DB + Security Issues
 
 A small Flask + SQLite application intentionally containing vulnerabilities
-for AI Friday demonstrations of CAST, DAST, code review, syntax analysis and
+for AI Friday demos of CAST, DAST, code review, syntax analysis and
 Manual PT.
 
 ## Run
